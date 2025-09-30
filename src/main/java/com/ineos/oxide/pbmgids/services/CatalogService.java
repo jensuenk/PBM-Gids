@@ -36,4 +36,8 @@ public class CatalogService {
     public List<Category> getChildren(Integer parentId) {
         return categoryRepository.findByParent_IdOrderByNameAsc(parentId);
     }
+
+    public Category getCategoryById(Integer categoryId) {
+        return categoryRepository.findById(categoryId).orElse(null);
+    }
 }
