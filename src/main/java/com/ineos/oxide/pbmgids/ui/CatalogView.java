@@ -19,12 +19,11 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 
-@Route(value = "catalog", layout = MainView.class)
+@Route(value = "catalog/:categoryId", layout = MainView.class)
 @PageTitle("PBM Catalog")
 @AnonymousAllowed
 public class CatalogView extends IneosAppLayout {
-    private static final long serialVersionUID = 1L;
-
+    protected static final String ROUTE = "catalog/:categoryId";
     private final CatalogService catalogService;
 
     // Removed categoryTree as it's now in MainView
