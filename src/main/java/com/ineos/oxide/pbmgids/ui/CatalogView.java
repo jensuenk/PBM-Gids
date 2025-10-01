@@ -179,11 +179,27 @@ public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
             return new Div();
         }
 
-        Image img = new Image(pbm.getImage(), pbm.getName());
+        String imageUrl = getImageUrl(pbm.getImage());
+        Image img = new Image(imageUrl, pbm.getName());
         img.setAlt(pbm.getName());
         img.setWidth("64px");
 
         return new Div(img);
+    }
+
+    private String getImageUrl(String imagePath) {
+        if (imagePath == null || imagePath.isBlank()) {
+            return "";
+        }
+
+        // Remove leading slash if present
+        String cleanPath = imagePath.startsWith("/") ? imagePath.substring(1) : imagePath;
+
+        // Construct the static resource URL
+        // Since images are in src/main/resources/static/images/mag_doc
+        // and database has paths like mag_doc/PBM/Foto_afbeeldingen/...
+        // we need to prefix with /images/
+        return "/images/" + cleanPath;
     }
 
     private Button createDetailsButton(Pbm pbm) {
@@ -294,7 +310,8 @@ public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
         imageLayout.setFlexGrow(0);
 
         if (pbm.getImage() != null && !pbm.getImage().isBlank()) {
-            Image img = new Image(pbm.getImage(), pbm.getName());
+            String imageUrl = getImageUrl(pbm.getImage());
+            Image img = new Image(imageUrl, pbm.getName());
             img.setMaxWidth("280px");
             img.setMaxHeight("280px");
             imageLayout.add(img);
