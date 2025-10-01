@@ -1,9 +1,9 @@
 package com.ineos.oxide.pbmgids.ui;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.ineos.oxide.pbmgids.model.entities.Document;
 import com.ineos.oxide.pbmgids.model.entities.Norm;
 import com.ineos.oxide.pbmgids.model.entities.Pbm;
@@ -11,6 +11,7 @@ import com.ineos.oxide.pbmgids.model.entities.WarehouseItem;
 import com.ineos.oxide.pbmgids.services.CatalogService;
 import com.ineos.oxide.pbmgids.services.CategoryDataService;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
@@ -19,7 +20,9 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -37,19 +40,26 @@ import com.vaadin.flow.server.auth.AnonymousAllowed;
 @AnonymousAllowed
 public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
     private static final Logger logger = Logger.getLogger(CatalogView.class.getName());
-    
+
     // Components
     private final H2 categoryTitle;
+    private final ComboBox<String> searchField;
     private final Grid<Pbm> pbmGrid;
-    
+
     // Services
     private final CategoryDataService categoryDataService;
+
+    // State
+    private Integer currentCategoryId;
+    private List<Pbm> allPbms = new ArrayList<>();
+    private String currentSearchFilter = "";
 
     public CatalogView(CatalogService catalogService) {
         this.categoryDataService = new CategoryDataService(catalogService);
         this.categoryTitle = new H2("PBM Catalog");
+        this.searchField = new ComboBox<>();
         this.pbmGrid = new Grid<>(Pbm.class, false);
-        
+
         initializeView();
     }
 
@@ -57,56 +67,109 @@ public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
     public void beforeEnter(BeforeEnterEvent event) {
         String categoryIdParam = event.getRouteParameters().get("categoryId").orElse(null);
         Integer categoryId = categoryDataService.validateAndParseCategoryId(categoryIdParam);
-        
+
         if (categoryId != null) {
+            this.currentCategoryId = categoryId;
             loadPbmsForCategory(categoryId);
             loadCategoryTitle(categoryId);
         } else {
             logger.warning("Invalid or missing category ID, showing empty grid");
+            this.currentCategoryId = null;
             categoryTitle.setText("PBM Catalog - Invalid Category");
+            allPbms.clear();
             pbmGrid.setItems();
         }
     }
 
     private void initializeView() {
         setPadding(true);
-        
+
+        // Setup search field
+        setupSearchField();
+
         // Setup PBM grid columns
         setupGridColumns();
-        
+
         // Add components to view
-        add(categoryTitle, pbmGrid);
+        add(categoryTitle, searchField, pbmGrid);
         setSizeFull();
+    }
+
+    private void setupSearchField() {
+        searchField.setPlaceholder("Search PBMs...");
+        searchField.setClearButtonVisible(true);
+        searchField.setWidthFull();
+
+        // Enable custom values (allows typing anything, not just suggestions)
+        searchField.setAllowCustomValue(true);
+
+        // Configure autocomplete behavior
+        searchField.addCustomValueSetListener(event -> {
+            String customValue = event.getDetail();
+            searchField.setValue(customValue);
+            performSearch(customValue);
+        });
+
+        // Handle selection from suggestions
+        searchField.addValueChangeListener(event -> {
+            String value = event.getValue();
+            performSearch(value);
+        });
+
+        // Set up lazy data provider for dynamic suggestions with proper pagination
+        searchField.setItems(query -> {
+            String filter = query.getFilter().orElse("");
+            int offset = query.getOffset();
+            int limit = query.getLimit();
+
+            // Store current filter for highlighting
+            currentSearchFilter = filter;
+
+            // Only show suggestions when at least 2 characters are entered
+            if (filter.length() < 2) {
+                return java.util.stream.Stream.empty();
+            }
+
+            List<String> allSuggestions = categoryDataService.getPbmNameSuggestions(filter);
+
+            // Apply pagination
+            return allSuggestions.stream()
+                    .skip(offset)
+                    .limit(limit);
+        });
+
+        // Set up custom renderer to highlight matching text
+        searchField.setRenderer(new ComponentRenderer<>(this::createHighlightedSuggestion));
     }
 
     private void setupGridColumns() {
         // Image column
         pbmGrid.addColumn(new ComponentRenderer<>(this::createImageComponent))
-            .setHeader("")
-            .setAutoWidth(true)
-            .setFlexGrow(0)
-            .setWidth("80px");
+                .setHeader("")
+                .setAutoWidth(true)
+                .setFlexGrow(0)
+                .setWidth("80px");
 
         // Name column
         pbmGrid.addColumn(Pbm::getName)
-            .setHeader("Name")
-            .setAutoWidth(true);
+                .setHeader("Name")
+                .setAutoWidth(true);
 
         // Type column
         pbmGrid.addColumn(Pbm::getTypeName)
-            .setHeader("Type")
-            .setAutoWidth(true);
+                .setHeader("Type")
+                .setAutoWidth(true);
 
         // Brand column
         pbmGrid.addColumn(Pbm::getBrand)
-            .setHeader("Brand")
-            .setAutoWidth(true);
+                .setHeader("Brand")
+                .setAutoWidth(true);
 
         // Details button column
         pbmGrid.addColumn(new ComponentRenderer<>(this::createDetailsButton))
-            .setHeader("")
-            .setAutoWidth(true)
-            .setFlexGrow(0);
+                .setHeader("")
+                .setAutoWidth(true)
+                .setFlexGrow(0);
 
         pbmGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
     }
@@ -115,11 +178,11 @@ public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
         if (pbm.getImage() == null || pbm.getImage().isBlank()) {
             return new Div();
         }
-        
+
         Image img = new Image(pbm.getImage(), pbm.getName());
         img.setAlt(pbm.getName());
         img.setWidth("64px");
-        
+
         return new Div(img);
     }
 
@@ -129,9 +192,47 @@ public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
         return btn;
     }
 
+    private Span createHighlightedSuggestion(String suggestion) {
+        if (currentSearchFilter == null || currentSearchFilter.isEmpty() || suggestion == null) {
+            return new Span(suggestion);
+        }
+
+        Span container = new Span();
+        String lowerSuggestion = suggestion.toLowerCase();
+        String lowerFilter = currentSearchFilter.toLowerCase();
+
+        int startIndex = lowerSuggestion.indexOf(lowerFilter);
+
+        if (startIndex == -1) {
+            // No match found, return plain text
+            container.setText(suggestion);
+        } else {
+            // Create highlighted text
+            if (startIndex > 0) {
+                // Add text before match
+                container.add(new Span(suggestion.substring(0, startIndex)));
+            }
+
+            // Add bold matched text
+            Span boldMatch = new Span(suggestion.substring(startIndex, startIndex + currentSearchFilter.length()));
+            boldMatch.getStyle().set("font-weight", "bold");
+            container.add(boldMatch);
+
+            if (startIndex + currentSearchFilter.length() < suggestion.length()) {
+                // Add text after match
+                container.add(new Span(suggestion.substring(startIndex + currentSearchFilter.length())));
+            }
+        }
+
+        return container;
+    }
+
     private void loadPbmsForCategory(Integer categoryId) {
-        List<Pbm> pbms = categoryDataService.loadPbmsByCategory(categoryId);
-        pbmGrid.setItems(pbms);
+        allPbms = categoryDataService.loadPbmsByCategory(categoryId);
+        pbmGrid.setItems(allPbms);
+
+        // Clear search field when loading new category
+        searchField.clear();
     }
 
     private void loadCategoryTitle(Integer categoryId) {
@@ -140,6 +241,30 @@ public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
             categoryTitle.setText("PBM Catalog - " + categoryName);
         } else {
             categoryTitle.setText("PBM Catalog - Category " + categoryId);
+        }
+    }
+
+    private void performSearch(String searchTerm) {
+        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+            // Show all PBMs for current category if search is empty
+            pbmGrid.setItems(allPbms);
+            updateSearchStatus(false, allPbms.size(), 0);
+        } else {
+            // Search across all PBMs in database when there's a search term
+            List<Pbm> searchResults = categoryDataService.searchAllPbms(searchTerm.trim());
+            pbmGrid.setItems(searchResults);
+            updateSearchStatus(true, searchResults.size(), allPbms.size());
+        }
+    }
+
+    private void updateSearchStatus(boolean isSearching, int resultCount, int totalCount) {
+        if (isSearching) {
+            categoryTitle.setText("PBM Search Results for \"" + currentSearchFilter);
+        } else {
+            // Restore original category title when not searching
+            if (currentCategoryId != null) {
+                loadCategoryTitle(currentCategoryId);
+            }
         }
     }
 
@@ -167,7 +292,7 @@ public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
         VerticalLayout imageLayout = new VerticalLayout();
         imageLayout.setWidth("300px");
         imageLayout.setFlexGrow(0);
-        
+
         if (pbm.getImage() != null && !pbm.getImage().isBlank()) {
             Image img = new Image(pbm.getImage(), pbm.getName());
             img.setMaxWidth("280px");
@@ -190,12 +315,12 @@ public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
         basicInfoLayout.setSpacing(false);
         basicInfoLayout.setPadding(false);
         basicInfoLayout.setFlexGrow(1);
-        
+
         // Title
         H2 title = new H2(pbm.getName());
         title.getStyle().set("margin", "0 0 20px 0");
         basicInfoLayout.add(title);
-        
+
         if (pbm.getBrand() != null && !pbm.getBrand().isBlank()) {
             H3 brandHeader = new H3("Brand");
             brandHeader.getStyle().set("margin", "0 0 5px 0");
@@ -203,7 +328,7 @@ public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
             brandText.getStyle().set("margin", "0 0 15px 0");
             basicInfoLayout.add(brandHeader, brandText);
         }
-        
+
         if (pbm.getTypeName() != null && !pbm.getTypeName().isBlank()) {
             H3 typeHeader = new H3("Type");
             typeHeader.getStyle().set("margin", "0 0 5px 0");
@@ -281,19 +406,19 @@ public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
         // Close button - always at bottom
         Button closeButton = new Button("Close", e -> dialog.close());
         closeButton.getStyle().set("align-self", "center");
-        
+
         // Dialog layout with fixed footer
         VerticalLayout dialogLayout = new VerticalLayout();
         dialogLayout.setPadding(true);
         dialogLayout.setSpacing(true);
         dialogLayout.setSizeFull();
-        
+
         dialogLayout.add(headerLayout); // Header with image and basic info
         dialogLayout.addAndExpand(tabSheet); // Tabs take all available remaining space
         dialogLayout.add(closeButton); // This stays at the bottom
-        
+
         dialog.add(dialogLayout);
-        
+
         return dialog;
     }
 
@@ -314,7 +439,7 @@ public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
         grid.addColumn(Document::getDescription).setHeader("Description").setAutoWidth(true);
         grid.setItems(documents);
         grid.setMaxHeight("300px");
-        
+
         Div container = new Div(grid);
         container.setSizeFull();
         return container;
@@ -326,7 +451,7 @@ public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
         grid.addColumn(Norm::getDescription).setHeader("Description").setAutoWidth(true);
         grid.setItems(norms);
         grid.setMaxHeight("300px");
-        
+
         Div container = new Div(grid);
         container.setSizeFull();
         return container;
@@ -337,14 +462,13 @@ public class CatalogView extends VerticalLayout implements BeforeEnterObserver {
         grid.addColumn(WarehouseItem::getWarehouseNumber).setHeader("Warehouse Number").setAutoWidth(true);
         grid.addColumn(WarehouseItem::getVariantText).setHeader("Variant").setAutoWidth(true);
         grid.addColumn(item -> item.getPublished() != null ? item.getPublished().toString() : "")
-            .setHeader("Published").setAutoWidth(true);
+                .setHeader("Published").setAutoWidth(true);
         grid.setItems(warehouseItems);
         grid.setMaxHeight("300px");
-        
+
         Div container = new Div(grid);
         container.setSizeFull();
         return container;
     }
-
 
 }

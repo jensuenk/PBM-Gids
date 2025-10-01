@@ -12,11 +12,12 @@ import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 
 /**
- * Reusable PBM Grid component that displays PBM items with image, name, type, brand, and details button.
+ * Reusable PBM Grid component that displays PBM items with image, name, type,
+ * brand, and details button.
  */
 public class PbmGrid extends Grid<Pbm> {
     private static final long serialVersionUID = 1L;
-    
+
     private Consumer<Pbm> detailsClickHandler;
 
     public PbmGrid() {
@@ -29,31 +30,31 @@ public class PbmGrid extends Grid<Pbm> {
     private void initializeColumns() {
         // Image column
         addColumn(new ComponentRenderer<>(this::createImageComponent))
-            .setHeader("")
-            .setAutoWidth(true)
-            .setFlexGrow(0)
-            .setWidth("80px");
+                .setHeader("")
+                .setAutoWidth(true)
+                .setFlexGrow(0)
+                .setWidth("80px");
 
         // Name column
         addColumn(Pbm::getName)
-            .setHeader("Name")
-            .setAutoWidth(true);
+                .setHeader("Name")
+                .setAutoWidth(true);
 
         // Type column
         addColumn(Pbm::getTypeName)
-            .setHeader("Type")
-            .setAutoWidth(true);
+                .setHeader("Type")
+                .setAutoWidth(true);
 
         // Brand column
         addColumn(Pbm::getBrand)
-            .setHeader("Brand")
-            .setAutoWidth(true);
+                .setHeader("Brand")
+                .setAutoWidth(true);
 
         // Details button column
         addColumn(new ComponentRenderer<>(this::createDetailsButton))
-            .setHeader("")
-            .setAutoWidth(true)
-            .setFlexGrow(0);
+                .setHeader("")
+                .setAutoWidth(true)
+                .setFlexGrow(0);
     }
 
     private void setupEventHandlers() {
@@ -68,11 +69,11 @@ public class PbmGrid extends Grid<Pbm> {
         if (pbm.getImage() == null || pbm.getImage().isBlank()) {
             return new Div();
         }
-        
+
         Image img = new Image(pbm.getImage(), pbm.getName());
         img.setAlt(pbm.getName());
         img.setWidth("64px");
-        
+
         Div container = new Div(img);
         return container;
     }
@@ -90,6 +91,7 @@ public class PbmGrid extends Grid<Pbm> {
 
     /**
      * Sets the handler for when details are requested for a PBM
+     * 
      * @param handler Consumer that handles the PBM details request
      */
     public void setDetailsClickHandler(Consumer<Pbm> handler) {
@@ -98,6 +100,7 @@ public class PbmGrid extends Grid<Pbm> {
 
     /**
      * Loads PBMs into the grid
+     * 
      * @param pbms List of PBMs to display
      */
     public void loadPbms(List<Pbm> pbms) {

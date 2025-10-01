@@ -7,7 +7,8 @@ import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 
 /**
- * Component that displays detailed information about a PBM including image, name, description, 
+ * Component that displays detailed information about a PBM including image,
+ * name, description,
  * and protection information.
  */
 public class PbmDetailsComponent extends VerticalLayout {
@@ -20,11 +21,12 @@ public class PbmDetailsComponent extends VerticalLayout {
 
     /**
      * Updates the component to show details for the specified PBM
+     * 
      * @param pbm The PBM to display details for
      */
     public void showPbm(Pbm pbm) {
         removeAll();
-        
+
         if (pbm == null) {
             return;
         }

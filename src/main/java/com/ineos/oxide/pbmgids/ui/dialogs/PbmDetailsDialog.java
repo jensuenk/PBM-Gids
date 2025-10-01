@@ -11,27 +11,27 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
  */
 public class PbmDetailsDialog extends Dialog {
     private static final long serialVersionUID = 1L;
-    
+
     private final PbmDetailsComponent detailsComponent;
     private final PbmRelationsComponent relationsComponent;
 
     public PbmDetailsDialog() {
         setupDialog();
-        
+
         // Initialize components
         detailsComponent = new PbmDetailsComponent();
         relationsComponent = new PbmRelationsComponent();
-        
+
         // Create layout
         VerticalLayout dialogContent = new VerticalLayout();
         dialogContent.setSpacing(true);
         dialogContent.setPadding(true);
         dialogContent.add(detailsComponent, relationsComponent);
-        
+
         // Set flex grow to allow relations to expand
         dialogContent.setFlexGrow(0, detailsComponent);
         dialogContent.setFlexGrow(1, relationsComponent);
-        
+
         add(dialogContent);
     }
 
@@ -46,19 +46,20 @@ public class PbmDetailsDialog extends Dialog {
 
     /**
      * Opens the dialog displaying details for the specified PBM
+     * 
      * @param pbm The PBM to display details for
      */
     public void showPbm(Pbm pbm) {
         if (pbm == null) {
             return;
         }
-        
+
         detailsComponent.showPbm(pbm);
         relationsComponent.showPbmRelations(pbm);
-        
+
         // Set dynamic header title
         setHeaderTitle("PBM Details: " + pbm.getName());
-        
+
         open();
     }
 
