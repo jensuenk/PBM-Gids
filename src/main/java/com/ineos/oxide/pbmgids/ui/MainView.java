@@ -99,8 +99,11 @@ public class MainView extends IosMainLayout implements HasLogger, HasResources {
 
 		if (children == null || children.isEmpty()) {
 			// Leaf category - create direct navigation link
-			return new MenuItemInfo(category.getName(), MENU_ICON_LIST_UL, CatalogView.class,
-					new RouteParameters("categoryId", category.getId().toString()));
+			MenuItemInfo item = new MenuItemInfo(category.getName(), MENU_ICON_LIST_UL,
+					CatalogView.class, new RouteParameters("categoryId", category.getId().toString()));
+			// close all open accordions to ensure proper highlighting of selected item
+
+			return item;
 		} else {
 			// Parent category with children - create submenu with recursive items
 			List<MenuItemInfo> subMenuItems = new ArrayList<>();

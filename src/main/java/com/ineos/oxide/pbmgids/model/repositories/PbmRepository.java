@@ -15,9 +15,9 @@ public interface PbmRepository extends JpaRepository<Pbm, Integer> {
     @Query("select p from Pbm p join p.categories c where c.id = :categoryId")
     List<Pbm> findByCategoryId(@Param("categoryId") Integer categoryId);
 
-    @Query("select distinct p from Pbm p join p.categories c left join fetch p.documents left join fetch p.norms left join fetch p.warehouseItems where c.id = :categoryId")
+    @Query("select distinct p from Pbm p join p.categories c left join fetch p.categories left join fetch p.documents left join fetch p.norms left join fetch p.warehouseItems where c.id = :categoryId")
     List<Pbm> findByCategoryIdWithRelations(@Param("categoryId") Integer categoryId);
 
-    @Query("select p from Pbm p left join fetch p.documents left join fetch p.norms left join fetch p.warehouseItems where p.id = :id")
+    @Query("select p from Pbm p left join fetch p.categories left join fetch p.documents left join fetch p.norms left join fetch p.warehouseItems where p.id = :id")
     Optional<Pbm> findDetailedById(@Param("id") Integer id);
 }
