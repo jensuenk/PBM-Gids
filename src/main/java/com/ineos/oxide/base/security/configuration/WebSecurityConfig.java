@@ -27,6 +27,7 @@ public class WebSecurityConfig extends VaadinWebSecurity {
                                 "/robots.txt",
                                 "/icons/**",
                                 "/images/**",
+                                "/static/**",
                                 "/h2-console/**")
                         .permitAll());
         super.configure(http);

@@ -12,4 +12,10 @@ public interface CategoryRepository extends JpaRepository<Category, Integer> {
     List<Category> findRootCategories();
 
     List<Category> findByParent_IdOrderByNameAsc(Integer parentId);
+
+    @Query("SELECT c FROM Category c LEFT JOIN FETCH c.parent WHERE c.id IN :ids")
+    List<Category> findByIdInWithParent(List<Integer> ids);
+
+    @Query("SELECT c FROM Category c LEFT JOIN FETCH c.parent WHERE c.id = :id")
+    java.util.Optional<Category> findByIdWithParent(Integer id);
 }

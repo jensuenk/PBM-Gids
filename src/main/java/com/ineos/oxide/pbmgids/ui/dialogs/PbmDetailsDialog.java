@@ -1,6 +1,10 @@
 package com.ineos.oxide.pbmgids.ui.dialogs;
 
+import java.util.List;
+
+import com.ineos.oxide.pbmgids.model.entities.Category;
 import com.ineos.oxide.pbmgids.model.entities.Pbm;
+import com.ineos.oxide.pbmgids.services.CatalogService;
 import com.ineos.oxide.pbmgids.ui.components.PbmContentComponent;
 import com.ineos.oxide.pbmgids.ui.components.PbmContentComponent.ContentSection;
 import com.vaadin.flow.component.button.Button;
@@ -10,7 +14,9 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.TabSheet;
@@ -22,7 +28,10 @@ import com.vaadin.flow.component.tabs.TabSheet;
 public class PbmDetailsDialog extends Dialog {
     private static final long serialVersionUID = 1L;
 
-    public PbmDetailsDialog() {
+    private final CatalogService catalogService;
+
+    public PbmDetailsDialog(CatalogService catalogService) {
+        this.catalogService = catalogService;
         setupDialog();
     }
 
@@ -126,7 +135,18 @@ public class PbmDetailsDialog extends Dialog {
             typeHeader.getStyle().set("margin", "0 0 5px 0");
             Div typeContent = new Div();
             typeContent.setText(pbm.getTypeName());
+            typeContent.getStyle().set("margin-bottom", "15px");
             basicInfoLayout.add(typeHeader, typeContent);
+        }
+
+        if (pbm.getCategories() != null && !pbm.getCategories().isEmpty()) {
+            H4 categoriesHeader = new H4("Categories");
+            categoriesHeader.getStyle().set("margin", "0 0 5px 0");
+
+            FlexLayout categoriesLayout = createCategoryBadges(pbm);
+            if (categoriesLayout != null) {
+                basicInfoLayout.add(categoriesHeader, categoriesLayout);
+            }
         }
 
         headerLayout.add(imageLayout, basicInfoLayout);
@@ -169,8 +189,12 @@ public class PbmDetailsDialog extends Dialog {
         // Remove leading slash if present
         String cleanPath = imagePath.startsWith("/") ? imagePath.substring(1) : imagePath;
 
-        // Construct the static resource URL
-        return "/images/" + cleanPath;
+        // If the path starts with mag_doc, use /static/ prefix, otherwise use /images/
+        if (cleanPath.startsWith("mag_doc/")) {
+            return "/static/" + cleanPath;
+        } else {
+            return "/images/" + cleanPath;
+        }
     }
 
     /**
@@ -179,5 +203,48 @@ public class PbmDetailsDialog extends Dialog {
     public void clearAndClose() {
         removeAll();
         close();
+    }
+
+    private FlexLayout createCategoryBadges(Pbm pbm) {
+        FlexLayout layout = new FlexLayout();
+        layout.getStyle().set("gap", "5px");
+        layout.getStyle().set("flex-wrap", "wrap");
+
+        if (!catalogService.hasCategories(pbm)) {
+            return layout;
+        }
+
+        List<Category> allCategories = catalogService.getAllCategoriesWithParents(pbm);
+
+        // Deduplicate by ID and name
+        java.util.Map<String, Category> uniqueCategories = new java.util.LinkedHashMap<>();
+        for (Category category : allCategories) {
+            if (category.getId() != null && !uniqueCategories.containsKey(category.getName())) {
+                uniqueCategories.put(category.getName(), category);
+            }
+        }
+
+        List<Category> categories = new java.util.ArrayList<>(uniqueCategories.values());
+
+        // Find root categories
+        java.util.Set<Integer> parentIds = new java.util.HashSet<>();
+        for (Category category : categories) {
+            if (category.getParent() != null) {
+                parentIds.add(category.getParent().getId());
+            }
+        }
+
+        // Create badges
+        for (Category category : categories) {
+            Span badge = new Span(category.getName());
+            if (!parentIds.contains(category.getId())) {
+                badge.getElement().getThemeList().add("badge success primary pill");
+            } else {
+                badge.getElement().getThemeList().add("badge primary pill");
+            }
+            layout.add(badge);
+        }
+
+        return layout;
     }
 }

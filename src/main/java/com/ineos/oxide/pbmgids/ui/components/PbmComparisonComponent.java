@@ -3,11 +3,13 @@ package com.ineos.oxide.pbmgids.ui.components;
 import java.util.List;
 
 import com.ineos.oxide.pbmgids.model.entities.Pbm;
+import com.ineos.oxide.pbmgids.services.CatalogService;
 import com.ineos.oxide.pbmgids.ui.components.PbmContentComponent.ContentSection;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 
@@ -18,7 +20,10 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 public class PbmComparisonComponent extends VerticalLayout {
     private static final long serialVersionUID = 1L;
 
-    public PbmComparisonComponent() {
+    private final CatalogService catalogService;
+
+    public PbmComparisonComponent(CatalogService catalogService) {
+        this.catalogService = catalogService;
         setPadding(true);
         setSpacing(true);
         setWidthFull();
@@ -107,6 +112,13 @@ public class PbmComparisonComponent extends VerticalLayout {
                 pbmLayout.add(typeDiv);
             }
 
+            if (catalogService.hasCategories(pbm)) {
+                FlexLayout categoriesLayout = createCenteredCategoryBadges(pbm);
+                if (categoriesLayout != null) {
+                    pbmLayout.add(categoriesLayout);
+                }
+            }
+
             layout.add(pbmLayout);
         }
 
@@ -138,7 +150,57 @@ public class PbmComparisonComponent extends VerticalLayout {
         // Remove leading slash if present
         String cleanPath = imagePath.startsWith("/") ? imagePath.substring(1) : imagePath;
 
-        // Construct the static resource URL
-        return "/images/" + cleanPath;
+        // If the path starts with mag_doc, use /static/ prefix, otherwise use /images/
+        if (cleanPath.startsWith("mag_doc/")) {
+            return "/static/" + cleanPath;
+        } else {
+            return "/images/" + cleanPath;
+        }
+    }
+
+    private FlexLayout createCenteredCategoryBadges(Pbm pbm) {
+        FlexLayout layout = new FlexLayout();
+        layout.getStyle().set("gap", "5px");
+        layout.getStyle().set("flex-wrap", "wrap");
+        layout.getStyle().set("justify-content", "center");
+
+        if (!catalogService.hasCategories(pbm)) {
+            return layout;
+        }
+
+        List<com.ineos.oxide.pbmgids.model.entities.Category> allCategories = catalogService
+                .getAllCategoriesWithParents(pbm);
+
+        // Deduplicate by ID and name
+        java.util.Map<String, com.ineos.oxide.pbmgids.model.entities.Category> uniqueCategories = new java.util.LinkedHashMap<>();
+        for (com.ineos.oxide.pbmgids.model.entities.Category category : allCategories) {
+            if (category.getId() != null && !uniqueCategories.containsKey(category.getName())) {
+                uniqueCategories.put(category.getName(), category);
+            }
+        }
+
+        List<com.ineos.oxide.pbmgids.model.entities.Category> categories = new java.util.ArrayList<>(
+                uniqueCategories.values());
+
+        // Find root categories
+        java.util.Set<Integer> parentIds = new java.util.HashSet<>();
+        for (com.ineos.oxide.pbmgids.model.entities.Category category : categories) {
+            if (category.getParent() != null) {
+                parentIds.add(category.getParent().getId());
+            }
+        }
+
+        // Create badges
+        for (com.ineos.oxide.pbmgids.model.entities.Category category : categories) {
+            com.vaadin.flow.component.html.Span badge = new com.vaadin.flow.component.html.Span(category.getName());
+            if (!parentIds.contains(category.getId())) {
+                badge.getElement().getThemeList().add("badge success primary pill");
+            } else {
+                badge.getElement().getThemeList().add("badge primary pill");
+            }
+            layout.add(badge);
+        }
+
+        return layout;
     }
 }

@@ -3,6 +3,7 @@ package com.ineos.oxide.pbmgids.ui.dialogs;
 import java.util.List;
 
 import com.ineos.oxide.pbmgids.model.entities.Pbm;
+import com.ineos.oxide.pbmgids.services.CatalogService;
 import com.ineos.oxide.pbmgids.ui.components.PbmComparisonComponent;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -22,10 +23,10 @@ public class PbmComparisonDialog extends Dialog {
     private final PbmComparisonComponent comparisonComponent;
     private final H2 titleLabel;
 
-    public PbmComparisonDialog() {
+    public PbmComparisonDialog(CatalogService catalogService) {
         setupDialog();
 
-        this.comparisonComponent = new PbmComparisonComponent();
+        this.comparisonComponent = new PbmComparisonComponent(catalogService);
         this.titleLabel = new H2("PBM Comparison");
 
         createLayout();

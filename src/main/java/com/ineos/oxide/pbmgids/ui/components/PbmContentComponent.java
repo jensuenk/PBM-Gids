@@ -3,7 +3,6 @@ package com.ineos.oxide.pbmgids.ui.components;
 import java.util.List;
 import java.util.Set;
 
-import com.ineos.oxide.pbmgids.model.entities.Category;
 import com.ineos.oxide.pbmgids.model.entities.Document;
 import com.ineos.oxide.pbmgids.model.entities.Norm;
 import com.ineos.oxide.pbmgids.model.entities.Pbm;
@@ -37,8 +36,7 @@ public class PbmContentComponent {
         USAGE_INSTRUCTIONS("Usage Instructions"),
         DISTRIBUTION("Distribution"),
         STANDARDS("Standards"),
-        WAREHOUSE_ITEMS("Warehouse Items"),
-        CATEGORIES("Categories");
+        WAREHOUSE_ITEMS("Warehouse Items");
 
         private final String displayName;
 
@@ -68,7 +66,6 @@ public class PbmContentComponent {
             case DISTRIBUTION -> pbm.getDistribution() != null && !pbm.getDistribution().isBlank();
             case STANDARDS -> hasStandardsContent(pbm);
             case WAREHOUSE_ITEMS -> pbm.getWarehouseItems() != null && !pbm.getWarehouseItems().isEmpty();
-            case CATEGORIES -> pbm.getCategories() != null && !pbm.getCategories().isEmpty();
         };
     }
 
@@ -96,7 +93,6 @@ public class PbmContentComponent {
             case DISTRIBUTION -> createHtmlContent(pbm.getDistribution());
             case STANDARDS -> createStandardsContent(pbm);
             case WAREHOUSE_ITEMS -> createWarehouseContent(pbm);
-            case CATEGORIES -> createCategoriesContent(pbm);
         };
     }
 
@@ -109,12 +105,13 @@ public class PbmContentComponent {
         column.setPadding(true);
         column.getStyle().set("border", "1px solid var(--lumo-contrast-20pct)");
         column.getStyle().set("border-radius", "var(--lumo-border-radius-s)");
-        column.setWidthFull(); // Ensure full width for proper grid display
+        column.getStyle().set("overflow", "auto");
+        column.setWidthFull();
 
         // Add content directly without PBM name header
         if (hasContent(pbm, section)) {
             Div content = createContent(pbm, section);
-            content.setWidthFull(); // Ensure content div is also full width
+            content.setWidthFull();
             column.add(content);
         } else {
             Span noContent = new Span("-");
@@ -148,7 +145,6 @@ public class PbmContentComponent {
     private static Div createHtmlContent(String htmlContent) {
         Div content = new Div();
         content.getElement().setProperty("innerHTML", htmlContent);
-        content.getStyle().set("padding", "10px");
         return content;
     }
 
@@ -160,39 +156,17 @@ public class PbmContentComponent {
         layout.setHeightFull();
 
         if (pbm.getNotes() != null && !pbm.getNotes().isBlank()) {
-            Div notesContent = createHtmlContent(pbm.getNotes());
-            layout.add(notesContent);
+            layout.add(createHtmlContent(pbm.getNotes()));
         }
 
-        // Create a spacer div to push downloads to bottom
-        Div spacer = new Div();
-        spacer.getStyle().set("flex-grow", "1");
-        layout.add(spacer);
+        // Add spacer to push documents to bottom
+        layout.add(createFlexSpacer());
 
-        // Add documents with type 2 at the bottom
-        if (pbm.getDocuments() != null) {
-            var type2Documents = pbm.getDocuments().stream()
-                    .filter(doc -> "2".equals(doc.getDocumentType()))
-                    .toList();
-            if (!type2Documents.isEmpty()) {
-                if (pbm.getNotes() != null && !pbm.getNotes().isBlank()) {
-                    Hr divider = new Hr();
-                    layout.add(divider);
-                    H4 documentsHeader = new H4("Related Documents");
-                    documentsHeader.getStyle().set("margin", "10px 0 5px 0");
-                    layout.add(documentsHeader);
-                }
-                Div documentsDiv = createDownloadableDocuments(type2Documents);
-                layout.add(documentsDiv);
-            }
-        }
+        // Add type 2 documents
+        addDocumentsIfPresent(layout, pbm.getDocuments(), "2", "Related Documents",
+                pbm.getNotes() != null && !pbm.getNotes().isBlank());
 
-        Div container = new Div(layout);
-        container.setWidthFull();
-        container.setHeightFull();
-        container.getStyle().set("display", "flex");
-        container.getStyle().set("flex-direction", "column");
-        return container;
+        return createFlexContainer(layout);
     }
 
     private static Div createUsageInstructionsContent(Pbm pbm) {
@@ -203,39 +177,15 @@ public class PbmContentComponent {
         layout.setHeightFull();
 
         if (pbm.getUsageInstructions() != null && !pbm.getUsageInstructions().isBlank()) {
-            Div usageContent = createHtmlContent(pbm.getUsageInstructions());
-            layout.add(usageContent);
+            layout.add(createHtmlContent(pbm.getUsageInstructions()));
         }
 
-        // Create a spacer div to push downloads to bottom
-        Div spacer = new Div();
-        spacer.getStyle().set("flex-grow", "1");
-        layout.add(spacer);
+        layout.add(createFlexSpacer());
 
-        // Add documents with type 1 at the bottom
-        if (pbm.getDocuments() != null) {
-            var type1Documents = pbm.getDocuments().stream()
-                    .filter(doc -> "1".equals(doc.getDocumentType()))
-                    .toList();
-            if (!type1Documents.isEmpty()) {
-                if (pbm.getUsageInstructions() != null && !pbm.getUsageInstructions().isBlank()) {
-                    Hr divider = new Hr();
-                    layout.add(divider);
-                    H4 documentsHeader = new H4("Related Documents");
-                    documentsHeader.getStyle().set("margin", "10px 0 5px 0");
-                    layout.add(documentsHeader);
-                }
-                Div documentsDiv = createDownloadableDocuments(type1Documents);
-                layout.add(documentsDiv);
-            }
-        }
+        addDocumentsIfPresent(layout, pbm.getDocuments(), "1", "Related Documents",
+                pbm.getUsageInstructions() != null && !pbm.getUsageInstructions().isBlank());
 
-        Div container = new Div(layout);
-        container.setWidthFull();
-        container.setHeightFull();
-        container.getStyle().set("display", "flex");
-        container.getStyle().set("flex-direction", "column");
-        return container;
+        return createFlexContainer(layout);
     }
 
     private static Div createStandardsContent(Pbm pbm) {
@@ -246,33 +196,15 @@ public class PbmContentComponent {
         layout.setHeightFull();
 
         if (pbm.getStandards() != null && !pbm.getStandards().isBlank()) {
-            Div standardsContent = createHtmlContent(pbm.getStandards());
-            layout.add(standardsContent);
+            layout.add(createHtmlContent(pbm.getStandards()));
         }
 
-        // Create a spacer div to push norms to bottom
-        Div spacer = new Div();
-        spacer.getStyle().set("flex-grow", "1");
-        layout.add(spacer);
+        layout.add(createFlexSpacer());
 
-        if (pbm.getNorms() != null && !pbm.getNorms().isEmpty()) {
-            if (pbm.getStandards() != null && !pbm.getStandards().isBlank()) {
-                Hr divider = new Hr();
-                layout.add(divider);
-                H4 normsHeader = new H4("Norms");
-                normsHeader.getStyle().set("margin", "10px 0 5px 0");
-                layout.add(normsHeader);
-            }
-            Div normsDiv = createDownloadableNorms(pbm.getNorms());
-            layout.add(normsDiv);
-        }
+        addNormsIfPresent(layout, pbm.getNorms(),
+                pbm.getStandards() != null && !pbm.getStandards().isBlank());
 
-        Div container = new Div(layout);
-        container.setWidthFull();
-        container.setHeightFull();
-        container.getStyle().set("display", "flex");
-        container.getStyle().set("flex-direction", "column");
-        return container;
+        return createFlexContainer(layout);
     }
 
     private static Div createWarehouseContent(Pbm pbm) {
@@ -284,27 +216,6 @@ public class PbmContentComponent {
         grid.setWidthFull();
 
         Div container = new Div(grid);
-        container.setWidthFull();
-        return container;
-    }
-
-    private static Div createCategoriesContent(Pbm pbm) {
-        VerticalLayout layout = new VerticalLayout();
-        layout.setPadding(false);
-        layout.setSpacing(false);
-        layout.setWidthFull();
-
-        for (Category category : pbm.getCategories()) {
-            Span categorySpan = new Span(category.getName());
-            categorySpan.getStyle().set("display", "inline-block");
-            categorySpan.getStyle().set("background", "var(--lumo-contrast-10pct)");
-            categorySpan.getStyle().set("padding", "4px 8px");
-            categorySpan.getStyle().set("border-radius", "var(--lumo-border-radius-s)");
-            categorySpan.getStyle().set("margin", "2px");
-            layout.add(categorySpan);
-        }
-
-        Div container = new Div(layout);
         container.setWidthFull();
         return container;
     }
@@ -339,8 +250,22 @@ public class PbmContentComponent {
             }
 
             downloadButton.addClickListener(event -> {
-                String downloadUrl = "/static/" + doc.getFilePath();
-                downloadButton.getUI().ifPresent(ui -> ui.getPage().open(downloadUrl, "_blank"));
+                try {
+                    // Encode each path segment separately to avoid encoding forward slashes
+                    String[] pathParts = doc.getFilePath().split("/");
+                    StringBuilder encodedPath = new StringBuilder();
+                    for (int i = 0; i < pathParts.length; i++) {
+                        if (i > 0)
+                            encodedPath.append("/");
+                        encodedPath.append(java.net.URLEncoder.encode(pathParts[i], "UTF-8").replace("+", "%20"));
+                    }
+                    String downloadUrl = "/static/" + encodedPath.toString();
+                    downloadButton.getUI().ifPresent(ui -> ui.getPage().open(downloadUrl, "_blank"));
+                } catch (java.io.UnsupportedEncodingException e) {
+                    // Fallback to original path if encoding fails
+                    String downloadUrl = "/static/" + doc.getFilePath();
+                    downloadButton.getUI().ifPresent(ui -> ui.getPage().open(downloadUrl, "_blank"));
+                }
             });
 
             flexLayout.add(downloadButton);
@@ -385,8 +310,22 @@ public class PbmContentComponent {
             // Only add click listener if there's a valid file path
             if (norm.getFilePath() != null && !norm.getFilePath().isBlank()) {
                 downloadButton.addClickListener(event -> {
-                    String downloadUrl = "/static/" + norm.getFilePath();
-                    downloadButton.getUI().ifPresent(ui -> ui.getPage().open(downloadUrl, "_blank"));
+                    try {
+                        // Encode each path segment separately to avoid encoding forward slashes
+                        String[] pathParts = norm.getFilePath().split("/");
+                        StringBuilder encodedPath = new StringBuilder();
+                        for (int i = 0; i < pathParts.length; i++) {
+                            if (i > 0)
+                                encodedPath.append("/");
+                            encodedPath.append(java.net.URLEncoder.encode(pathParts[i], "UTF-8").replace("+", "%20"));
+                        }
+                        String downloadUrl = "/static/" + encodedPath.toString();
+                        downloadButton.getUI().ifPresent(ui -> ui.getPage().open(downloadUrl, "_blank"));
+                    } catch (java.io.UnsupportedEncodingException e) {
+                        // Fallback to original path if encoding fails
+                        String downloadUrl = "/static/" + norm.getFilePath();
+                        downloadButton.getUI().ifPresent(ui -> ui.getPage().open(downloadUrl, "_blank"));
+                    }
                 });
             } else {
                 downloadButton.setEnabled(false);
@@ -399,6 +338,57 @@ public class PbmContentComponent {
         Div container = new Div(flexLayout);
         container.setWidthFull();
         return container;
+    }
+
+    // Helper methods for reducing code duplication
+
+    private static Div createFlexSpacer() {
+        Div spacer = new Div();
+        spacer.getStyle().set("flex-grow", "1");
+        return spacer;
+    }
+
+    private static Div createFlexContainer(VerticalLayout layout) {
+        Div container = new Div(layout);
+        container.setWidthFull();
+        container.setHeightFull();
+        container.getStyle()
+                .set("display", "flex")
+                .set("flex-direction", "column");
+        return container;
+    }
+
+    private static void addDocumentsIfPresent(VerticalLayout layout, Set<Document> documents,
+            String documentType, String sectionTitle, boolean addDivider) {
+        if (documents == null)
+            return;
+
+        var filteredDocs = documents.stream()
+                .filter(doc -> documentType.equals(doc.getDocumentType()))
+                .toList();
+
+        if (!filteredDocs.isEmpty()) {
+            if (addDivider) {
+                layout.add(new Hr());
+                H4 header = new H4(sectionTitle);
+                header.getStyle().set("margin", "10px 0 5px 0");
+                layout.add(header);
+            }
+            layout.add(createDownloadableDocuments(filteredDocs));
+        }
+    }
+
+    private static void addNormsIfPresent(VerticalLayout layout, Set<Norm> norms, boolean addDivider) {
+        if (norms == null || norms.isEmpty())
+            return;
+
+        if (addDivider) {
+            layout.add(new Hr());
+            H4 header = new H4("Norms");
+            header.getStyle().set("margin", "10px 0 5px 0");
+            layout.add(header);
+        }
+        layout.add(createDownloadableNorms(norms));
     }
 
 }
